@@ -591,7 +591,7 @@ textarea {
 
 .item-row {
   display: grid;
-  grid-template-columns: 1fr 1fr 130px 40px;
+  grid-template-columns: 1fr 1fr 130px 1fr 40px;
   gap: 9px;
 }
 
@@ -638,11 +638,11 @@ textarea {
 
 .receipt-paper {
   width: 430px;
-  min-height: 620px;
+  min-height: 560px;
   background: #ffffff;
   color: var(--ink);
   border: 1px solid var(--line);
-  padding: 28px;
+  padding: 24px;
   box-shadow: 0 16px 34px rgba(33, 28, 36, 0.12);
 }
 
@@ -663,7 +663,7 @@ textarea {
   justify-content: flex-start;
   text-align: left;
   border-bottom: 3px solid var(--anis-purple);
-  padding-bottom: 18px;
+  padding-bottom: 14px;
 }
 
 .receipt-logo {
@@ -688,7 +688,7 @@ textarea {
 }
 
 .receipt-meta {
-  margin: 16px 0;
+  margin: 12px 0;
   font-weight: 800;
   font-size: 13px;
 }
@@ -696,10 +696,10 @@ textarea {
 .receipt-student {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  gap: 8px;
   background: #f7f3f7;
   border-radius: 7px;
-  padding: 13px;
+  padding: 11px;
 }
 
 .receipt-student div,
@@ -723,7 +723,7 @@ textarea {
 }
 
 .receipt-table {
-  margin-top: 18px;
+  margin-top: 12px;
 }
 
 .receipt-table th,
@@ -732,7 +732,7 @@ textarea {
 .data-table td {
   text-align: left;
   border-bottom: 1px solid #eee6ee;
-  padding: 11px 8px;
+  padding: 8px 8px;
 }
 
 .receipt-table th:last-child,
@@ -740,18 +740,48 @@ textarea {
   text-align: right;
 }
 
+.amount-with-note {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+}
+
+.amount-with-note small {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
 .receipt-total {
-  margin-top: 18px;
-  padding-top: 14px;
+  margin-top: 12px;
+  padding-top: 10px;
   border-top: 3px solid var(--anis-red);
   font-size: 19px;
   position: relative;
   z-index: 1;
 }
 
+.receipt-total-amount {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+  text-align: right;
+}
+
+.receipt-total-amount small {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.25;
+  max-width: 240px;
+}
+
 .receipt-note {
-  margin-top: 18px;
-  min-height: 64px;
+  margin-top: 12px;
+  min-height: 48px;
 }
 
 .receipt-note p {
@@ -768,9 +798,25 @@ textarea {
 }
 
 .receipt-footer {
-  margin-top: 30px;
+  margin-top: 16px;
   color: var(--muted);
   font-size: 12px;
+  align-items: flex-start;
+  flex-direction: column;
+  gap: 8px;
+  justify-content: flex-start;
+}
+
+.receipt-disclaimer {
+  width: 100%;
+  max-width: none;
+  text-align: left;
+}
+
+.receipt-disclaimer p {
+  margin: 0;
+  line-height: 1.18;
+  text-align: left;
 }
 
 .category-grid {

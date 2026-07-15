@@ -50,6 +50,7 @@ type ReceiptLine = {
   categoryName: string;
   itemName: string;
   amount: number;
+  note?: string;
 };
 
 type ReceiptRecord = {
@@ -84,8 +85,8 @@ type Page = "dashboard" | "create" | "receipts" | "verify" | "categories" | "det
 const USERS: Array<StaffUser & { password: string }> = [
   {
     id: "staff-1",
-    name: "School Admin",
-    email: "admin@school.test",
+    name: "Finance Department",
+    email: "FD@test.com",
     password: "password123",
     role: "admin",
   },
@@ -128,6 +129,26 @@ const defaultCategories: Category[] = [
   },
 ];
 
+const GRADE_OPTIONS = [
+  "Pre K",
+  "LKG",
+  "UKG",
+  "G1",
+  "G2",
+  "G3",
+  "G4",
+  "G5",
+  "G6",
+  "G7",
+  "G8",
+  "G9",
+  "G10",
+  "AS",
+  "A2",
+];
+
+const CLASS_OPTIONS = ["A", "B", "C", "D"];
+
 const STORAGE_KEYS = {
   user: "school-receipt-user",
   categories: "school-receipt-categories",
@@ -148,6 +169,83 @@ const money = {
     })}`;
   },
 };
+
+const SMALL_NUMBER_WORDS = [
+  "zero",
+  "one",
+  "two",
+  "three",
+  "four",
+  "five",
+  "six",
+  "seven",
+  "eight",
+  "nine",
+  "ten",
+  "eleven",
+  "twelve",
+  "thirteen",
+  "fourteen",
+  "fifteen",
+  "sixteen",
+  "seventeen",
+  "eighteen",
+  "nineteen",
+];
+
+const TENS_WORDS = ["", "", "twenty", "thirty", "forty", "fifty", "sixty", "seventy", "eighty", "ninety"];
+
+function wordsUnderThousand(value: number): string {
+  const parts: string[] = [];
+  const hundreds = Math.floor(value / 100);
+  const remainder = value % 100;
+
+  if (hundreds) parts.push(`${SMALL_NUMBER_WORDS[hundreds]} hundred`);
+  if (remainder) {
+    if (remainder < 20) {
+      parts.push(SMALL_NUMBER_WORDS[remainder]);
+    } else {
+      const tens = Math.floor(remainder / 10);
+      const ones = remainder % 10;
+      parts.push(ones ? `${TENS_WORDS[tens]} ${SMALL_NUMBER_WORDS[ones]}` : TENS_WORDS[tens]);
+    }
+  }
+
+  return parts.join(" ");
+}
+
+function numberToWords(value: number): string {
+  if (value === 0) return "zero";
+
+  const groups = [
+    { value: 1_000_000_000, label: "billion" },
+    { value: 1_000_000, label: "million" },
+    { value: 1_000, label: "thousand" },
+  ];
+  const parts: string[] = [];
+  let remainder = Math.floor(value);
+
+  groups.forEach((group) => {
+    const count = Math.floor(remainder / group.value);
+    if (count) {
+      parts.push(`${wordsUnderThousand(count)} ${group.label}`);
+      remainder %= group.value;
+    }
+  });
+
+  if (remainder) parts.push(wordsUnderThousand(remainder));
+  return parts.join(" ");
+}
+
+function amountInWords(amount: number): string {
+  const totalCents = Math.round(amount * 100);
+  const rupees = Math.floor(totalCents / 100);
+  const cents = totalCents % 100;
+  const rupeeWords = numberToWords(rupees);
+  const centWords = cents ? ` and ${numberToWords(cents)} cents` : "";
+  const text = `${rupeeWords} LKR${centWords} only`;
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
 
 const today = () => new Date().toISOString().slice(0, 10);
 const uid = () => crypto.randomUUID();
@@ -244,9 +342,21 @@ async function saveSharedAppData(data: SharedAppData) {
   });
 }
 
+function normalizeStaffUser(user: StaffUser | null) {
+  if (!user) return null;
+  const currentUser = USERS.find((staff) => staff.id === user.id || staff.email === user.email);
+  if (!currentUser) return user;
+  return {
+    id: currentUser.id,
+    name: currentUser.name,
+    email: currentUser.email,
+    role: currentUser.role,
+  };
+}
+
 function App() {
   const [user, setUser] = React.useState<StaffUser | null>(() =>
-    readStorage<StaffUser | null>(STORAGE_KEYS.user, null),
+    normalizeStaffUser(readStorage<StaffUser | null>(STORAGE_KEYS.user, null)),
   );
   const [page, setPage] = React.useState<Page>("dashboard");
   const [categories, setCategories] = React.useState<Category[]>(() => getLocalAppData().categories);
@@ -262,6 +372,10 @@ function App() {
   React.useEffect(() => {
     writeLocalAppData({ categories, receipts, counter });
   }, [categories, receipts, counter]);
+
+  React.useEffect(() => {
+    if (user) writeStorage(STORAGE_KEYS.user, user);
+  }, [user]);
 
   React.useEffect(() => {
     if (!USE_SHARED_STORAGE) return;
@@ -435,7 +549,7 @@ function App() {
 }
 
 function LoginPage({ onLogin }: { onLogin: (email: string, password: string) => boolean }) {
-  const [email, setEmail] = React.useState("admin@school.test");
+  const [email, setEmail] = React.useState("FD@test.com");
   const [password, setPassword] = React.useState("password123");
   const [error, setError] = React.useState("");
   const loginTitleStyle: React.CSSProperties = {
@@ -495,7 +609,7 @@ function LoginPage({ onLogin }: { onLogin: (email: string, password: string) => 
               <User size={18} /> Login
             </button>
           </form>
-          <div className="hint">Demo: admin@school.test / password123</div>
+          <div className="hint">Demo: FD@test.com / password123</div>
         </div>
       </section>
     </div>
@@ -758,21 +872,22 @@ function CreateReceiptPage({
   }
 
   function selectCategory(lineId: string, categoryId: string) {
+    const line = items.find((item) => item.id === lineId);
     const category = categories.find((item) => item.id === categoryId);
     const subItem = category?.items[0];
-    updateLine(lineId, makeLine(category, subItem, lineId));
+    updateLine(lineId, makeLine(category, subItem, lineId, line?.note));
   }
 
   function selectItem(lineId: string, itemId: string) {
     const line = items.find((item) => item.id === lineId);
     const category = categories.find((item) => item.id === line?.categoryId);
     const subItem = category?.items.find((item) => item.id === itemId);
-    updateLine(lineId, makeLine(category, subItem, lineId));
+    updateLine(lineId, makeLine(category, subItem, lineId, line?.note));
   }
 
   async function downloadDraftImage() {
     if (!previewRef.current) return;
-    await downloadReceiptImage(previewRef.current, receiptNumber);
+    await downloadReceiptImage(previewRef.current, receiptImageFileName(draft));
   }
 
   return (
@@ -792,11 +907,25 @@ function CreateReceiptPage({
             </label>
             <label>
               Grade
-              <input value={grade} onChange={(event) => setGrade(event.target.value)} />
+              <select value={grade} onChange={(event) => setGrade(event.target.value)}>
+                <option value="">Select grade</option>
+                {GRADE_OPTIONS.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
             </label>
             <label>
               Class
-              <input value={className} onChange={(event) => setClassName(event.target.value)} />
+              <select value={className} onChange={(event) => setClassName(event.target.value)}>
+                <option value="">Select class</option>
+                {CLASS_OPTIONS.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
             </label>
             <label>
               Student ID
@@ -874,6 +1003,11 @@ function CreateReceiptPage({
                     value={line.amount}
                     onChange={(event) => updateLine(line.id, { amount: Number(event.target.value) })}
                   />
+                  <input
+                    placeholder="Item note"
+                    value={line.note || ""}
+                    onChange={(event) => updateLine(line.id, { note: event.target.value })}
+                  />
                   <button
                     className="icon-button"
                     title="Remove item"
@@ -916,7 +1050,7 @@ function CreateReceiptPage({
   );
 }
 
-function makeLine(category?: Category, item?: PaymentItem, id: string = uid()): ReceiptLine {
+function makeLine(category?: Category, item?: PaymentItem, id: string = uid(), note = ""): ReceiptLine {
   return {
     id,
     categoryId: category?.id || "",
@@ -924,6 +1058,7 @@ function makeLine(category?: Category, item?: PaymentItem, id: string = uid()): 
     categoryName: category?.name || "",
     itemName: item?.name || "",
     amount: item?.defaultAmount || 0,
+    note,
   };
 }
 
@@ -1040,6 +1175,19 @@ function formatDisplayDate(value: string) {
   }).format(dateFromIso(value));
 }
 
+function formatReceiptDateTime(dateValue: string, issuedAt: string) {
+  const issuedDate = new Date(issuedAt);
+  if (Number.isNaN(issuedDate.getTime())) return dateValue;
+
+  const issuedTime = new Intl.DateTimeFormat("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  }).format(issuedDate);
+
+  return `${dateValue}, ${issuedTime}`;
+}
+
 const ReceiptPreview = React.forwardRef<HTMLDivElement, { receipt: ReceiptRecord }>(
   ({ receipt }, ref) => (
     <div className="receipt-paper" ref={ref}>
@@ -1052,7 +1200,7 @@ const ReceiptPreview = React.forwardRef<HTMLDivElement, { receipt: ReceiptRecord
       </div>
       <div className="receipt-meta">
         <span>Receipt No: {receipt.receiptNumber}</span>
-        <span>Date: {receipt.date}</span>
+        <span>Date: {formatReceiptDateTime(receipt.date, receipt.createdAt)}</span>
       </div>
       <div className="receipt-student">
         <div>
@@ -1089,14 +1237,22 @@ const ReceiptPreview = React.forwardRef<HTMLDivElement, { receipt: ReceiptRecord
             <tr key={item.id}>
               <td>{item.categoryName}</td>
               <td>{item.itemName}</td>
-              <td>{money.format(item.amount)}</td>
+              <td>
+                <div className="amount-with-note">
+                  <strong>{money.format(item.amount)}</strong>
+                  {item.note && <small>{item.note}</small>}
+                </div>
+              </td>
             </tr>
           ))}
         </tbody>
       </table>
       <div className="receipt-total">
         <span>Total Amount</span>
-        <strong>{money.format(receipt.total)}</strong>
+        <div className="receipt-total-amount">
+          <strong>{money.format(receipt.total)}</strong>
+          <small>{amountInWords(receipt.total)}</small>
+        </div>
       </div>
       <img className="receipt-stamp" src="/payment-received-stamp.png" alt="Payment received stamp" />
       <div className="receipt-note">
@@ -1105,7 +1261,12 @@ const ReceiptPreview = React.forwardRef<HTMLDivElement, { receipt: ReceiptRecord
       </div>
       <div className="receipt-footer">
         <span>Created by: {receipt.createdBy.name}</span>
-        <span>Signature: __________________</span>
+        <div className="receipt-disclaimer">
+          <p>
+            This receipt is electronically generated. Any alteration or unauthorized reproduction will invalidate this
+            receipt. Verification is available through the official verification system.
+          </p>
+        </div>
       </div>
     </div>
   ),
@@ -1416,7 +1577,12 @@ function VerifyReceiptPage({
                   <tr key={item.id}>
                     <td>{item.categoryName}</td>
                     <td>{item.itemName}</td>
-                    <td>{money.format(item.amount)}</td>
+                    <td>
+                      <div className="amount-with-note">
+                        <strong>{money.format(item.amount)}</strong>
+                        {item.note && <small>{item.note}</small>}
+                      </div>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -1592,7 +1758,7 @@ function ReceiptDetailPage({
 
   async function generateImage() {
     if (!previewRef.current) return;
-    const imageUrl = await downloadReceiptImage(previewRef.current, receipt.receiptNumber);
+    const imageUrl = await downloadReceiptImage(previewRef.current, receiptImageFileName(receipt));
     updateReceipt({ ...receipt, imageUrl });
     setImageStatus("Receipt image downloaded.");
   }
@@ -1604,7 +1770,7 @@ function ReceiptDetailPage({
       const { blob, imageUrl } = await createReceiptImage(previewRef.current);
       updateReceipt({ ...receipt, imageUrl });
       if (!navigator.clipboard || typeof ClipboardItem === "undefined") {
-        downloadImageUrl(imageUrl, receipt.receiptNumber);
+        downloadImageUrl(imageUrl, receiptImageFileName(receipt));
         setImageStatus("Image copy is not supported here. The receipt image was downloaded instead.");
         return;
       }
@@ -1621,7 +1787,7 @@ function ReceiptDetailPage({
     try {
       const { blob, imageUrl } = await createReceiptImage(previewRef.current);
       updateReceipt({ ...receipt, imageUrl });
-      const file = new File([blob], `${receipt.receiptNumber}.png`, { type: "image/png" });
+      const file = new File([blob], `${receiptImageFileName(receipt)}.png`, { type: "image/png" });
       const shareData = {
         title: receipt.receiptNumber,
         text: `Hello, here is your receipt from the school. Receipt No: ${receipt.receiptNumber}. Total: ${money.format(receipt.total)}.`,
@@ -1632,7 +1798,7 @@ function ReceiptDetailPage({
         setImageStatus("Receipt image shared.");
         return;
       }
-      downloadImageUrl(imageUrl, receipt.receiptNumber);
+      downloadImageUrl(imageUrl, receiptImageFileName(receipt));
       if (whatsappPhone) window.open(whatsappUrl, "_blank", "noopener,noreferrer");
       setImageStatus("Direct image sharing is not supported here. The image was downloaded for manual attachment.");
     } catch {
@@ -1737,7 +1903,7 @@ function ReceiptDetailPage({
           </div>
           {imageStatus && <p className="share-status">{imageStatus}</p>}
           {receipt.imageUrl && (
-            <a className="download-link" href={receipt.imageUrl} download={`${receipt.receiptNumber}.png`}>
+            <a className="download-link" href={receipt.imageUrl} download={`${receiptImageFileName(receipt)}.png`}>
               Download last generated image
             </a>
           )}
@@ -1747,9 +1913,25 @@ function ReceiptDetailPage({
   );
 }
 
-async function downloadReceiptImage(element: HTMLElement, receiptNumber: string) {
+function safeFileNamePart(value: string, fallback: string) {
+  const cleaned = value
+    .trim()
+    .replace(/\s+/g, "-")
+    .replace(/[\\/:*?"<>|#%&{}$!'@+=`]/g, "")
+    .replace(/-+/g, "-");
+  return cleaned || fallback;
+}
+
+function receiptImageFileName(receipt: Pick<ReceiptRecord, "studentName" | "date" | "receiptNumber">) {
+  const studentName = safeFileNamePart(receipt.studentName, "Student");
+  const date = safeFileNamePart(receipt.date, today());
+  const receiptNumber = safeFileNamePart(receipt.receiptNumber, "Receipt");
+  return `${studentName}_${date}_${receiptNumber}`;
+}
+
+async function downloadReceiptImage(element: HTMLElement, fileName: string) {
   const { imageUrl } = await createReceiptImage(element);
-  downloadImageUrl(imageUrl, receiptNumber);
+  downloadImageUrl(imageUrl, fileName);
   return imageUrl;
 }
 
@@ -1768,10 +1950,10 @@ async function createReceiptImage(element: HTMLElement) {
   return { blob, imageUrl };
 }
 
-function downloadImageUrl(imageUrl: string, receiptNumber: string) {
+function downloadImageUrl(imageUrl: string, fileName: string) {
   const anchor = document.createElement("a");
   anchor.href = imageUrl;
-  anchor.download = `${receiptNumber}.png`;
+  anchor.download = `${fileName}.png`;
   anchor.click();
 }
 
