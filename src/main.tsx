@@ -634,7 +634,7 @@ function Sidebar({
     { page: "create", label: "Create Receipt", icon: <Plus size={18} /> },
     { page: "receipts", label: "Receipt List", icon: <ClipboardList size={18} /> },
     { page: "verify", label: "Verify Receipt", icon: <ShieldCheck size={18} /> },
-    { page: "categories", label: "Categories", icon: <Settings size={18} /> },
+    { page: "categories", label: "Settings", icon: <Settings size={18} /> },
   ];
 
   return (
