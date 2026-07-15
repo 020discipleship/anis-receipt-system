@@ -1806,6 +1806,24 @@ function ReceiptDetailPage({
     }
   }
 
+  function markReceiptSent(sendMethod: "WhatsApp" | "SMS" | "manual" = method) {
+    updateReceipt({
+      ...receipt,
+      parentPhone: phone,
+      sendMethod,
+      sentStatus: "sent",
+      sentDate: new Date().toISOString(),
+    });
+  }
+
+  function openWhatsApp() {
+    if (!whatsappPhone) return;
+    window.open(whatsappUrl, "_blank", "noopener,noreferrer");
+    markReceiptSent("WhatsApp");
+    setMethod("WhatsApp");
+    setImageStatus("WhatsApp opened. This receipt was marked as sent.");
+  }
+
   const message = encodeURIComponent(
     `Hello, here is your receipt from the school. Receipt No: ${receipt.receiptNumber}. Total: ${money.format(receipt.total)}.`,
   );
@@ -1876,27 +1894,18 @@ function ReceiptDetailPage({
             <button className="secondary-button" style={sendButtonStyle} onClick={shareImage}>
               <Share2 size={18} /> Share Image
             </button>
-            <a
+            <button
               className={whatsappPhone ? "primary-button link-button" : "primary-button link-button disabled"}
               style={sendButtonStyle}
-              href={whatsappPhone ? whatsappUrl : undefined}
-              target="_blank"
-              rel="noreferrer"
+              disabled={!whatsappPhone}
+              onClick={openWhatsApp}
             >
               <Send size={18} /> Open WhatsApp
-            </a>
+            </button>
             <button
               className="secondary-button"
               style={sendButtonStyle}
-              onClick={() =>
-                updateReceipt({
-                  ...receipt,
-                  parentPhone: phone,
-                  sendMethod: method,
-                  sentStatus: "sent",
-                  sentDate: new Date().toISOString(),
-                })
-              }
+              onClick={() => markReceiptSent()}
             >
               <Save size={18} /> Mark as Sent
             </button>
