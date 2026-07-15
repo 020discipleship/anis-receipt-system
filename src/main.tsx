@@ -1795,20 +1795,26 @@ function ReceiptDetailPage({
       };
       if (navigator.share && navigator.canShare?.({ files: [file] })) {
         await navigator.share(shareData);
+        markReceiptSent(method, { imageUrl });
         setImageStatus("Receipt image shared.");
         return;
       }
       downloadImageUrl(imageUrl, receiptImageFileName(receipt));
-      if (whatsappPhone) window.open(whatsappUrl, "_blank", "noopener,noreferrer");
+      if (whatsappPhone) {
+        markReceiptSent("WhatsApp", { imageUrl });
+        setMethod("WhatsApp");
+        window.open(whatsappUrl, "_blank", "noopener,noreferrer");
+      }
       setImageStatus("Direct image sharing is not supported here. The image was downloaded for manual attachment.");
     } catch {
       setImageStatus("Image sharing was cancelled or blocked. Use Generate Image, then attach the PNG in WhatsApp.");
     }
   }
 
-  function markReceiptSent(sendMethod: "WhatsApp" | "SMS" | "manual" = method) {
+  function markReceiptSent(sendMethod: "WhatsApp" | "SMS" | "manual" = method, patch: Partial<ReceiptRecord> = {}) {
     updateReceipt({
       ...receipt,
+      ...patch,
       parentPhone: phone,
       sendMethod,
       sentStatus: "sent",
@@ -1818,9 +1824,9 @@ function ReceiptDetailPage({
 
   function openWhatsApp() {
     if (!whatsappPhone) return;
-    window.open(whatsappUrl, "_blank", "noopener,noreferrer");
     markReceiptSent("WhatsApp");
     setMethod("WhatsApp");
+    window.open(whatsappUrl, "_blank", "noopener,noreferrer");
     setImageStatus("WhatsApp opened. This receipt was marked as sent.");
   }
 
