@@ -714,6 +714,18 @@ textarea {
   padding: 11px;
 }
 
+.receipt-voided-banner {
+  margin: 10px 0;
+  padding: 8px 10px;
+  border: 2px solid var(--anis-red);
+  border-radius: 7px;
+  color: var(--anis-red);
+  font-size: 14px;
+  font-weight: 900;
+  letter-spacing: 0;
+  text-align: center;
+}
+
 .receipt-student div,
 .receipt-note {
   display: grid;
@@ -913,6 +925,11 @@ textarea {
   background: var(--anis-purple-soft);
 }
 
+.status.voided {
+  color: var(--anis-red);
+  background: #ffe8e8;
+}
+
 .empty-state {
   padding: 22px;
   color: var(--muted);
@@ -931,6 +948,53 @@ textarea {
   color: var(--muted);
   font-size: 13px;
   font-weight: 700;
+}
+
+.void-panel {
+  display: grid;
+  gap: 4px;
+  margin-top: 14px;
+  padding: 12px;
+  border: 1px solid #f1b8b8;
+  border-radius: 7px;
+  background: #fff4f4;
+  color: var(--anis-red);
+  font-size: 13px;
+}
+
+.activity-log {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+
+.activity-log h3 {
+  margin: 0 0 10px;
+}
+
+.activity-list {
+  display: grid;
+  gap: 8px;
+}
+
+.activity-item {
+  display: grid;
+  gap: 4px;
+  padding: 10px;
+  border-radius: 7px;
+  background: #faf7fb;
+}
+
+.activity-item div {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.activity-item span,
+.activity-item small,
+.muted-text {
+  color: var(--muted);
 }
 
 .save-message {

@@ -71,13 +71,32 @@ type ReceiptRecord = {
   total: number;
   createdBy: StaffUser;
   imageUrl?: string;
+  recordStatus?: "active" | "voided";
+  voidReason?: string;
+  voidedBy?: StaffUser;
+  voidedAt?: string;
   createdAt: string;
+};
+
+type AuditAction = "created" | "updated" | "marked_sent" | "image_generated" | "voided";
+
+type ReceiptAuditLog = {
+  id: string;
+  receiptId: string;
+  receiptNumber: string;
+  action: AuditAction;
+  changedBy: StaffUser;
+  changedAt: string;
+  beforeData?: ReceiptRecord | null;
+  afterData?: ReceiptRecord | null;
+  note?: string;
 };
 
 type SharedAppData = {
   categories: Category[];
   receipts: ReceiptRecord[];
   counter: number;
+  auditLogs: ReceiptAuditLog[];
 };
 
 type Page = "dashboard" | "create" | "receipts" | "verify" | "categories" | "detail";
@@ -154,6 +173,7 @@ const STORAGE_KEYS = {
   categories: "school-receipt-categories",
   receipts: "school-receipt-receipts",
   counter: "school-receipt-counter",
+  auditLogs: "school-receipt-audit-logs",
 };
 
 const SHARED_STATE_ID = "default";
@@ -283,12 +303,14 @@ function getLocalAppData(): SharedAppData {
     categories: readStorage<Category[]>(STORAGE_KEYS.categories, defaultCategories),
     receipts: readStorage<ReceiptRecord[]>(STORAGE_KEYS.receipts, []),
     counter: Number(localStorage.getItem(STORAGE_KEYS.counter) || "0"),
+    auditLogs: readStorage<ReceiptAuditLog[]>(STORAGE_KEYS.auditLogs, []),
   };
 }
 
 function writeLocalAppData(data: SharedAppData) {
   writeStorage(STORAGE_KEYS.categories, data.categories);
   writeStorage(STORAGE_KEYS.receipts, data.receipts);
+  writeStorage(STORAGE_KEYS.auditLogs, data.auditLogs);
   localStorage.setItem(STORAGE_KEYS.counter, String(data.counter));
 }
 
@@ -303,6 +325,7 @@ function normalizeSharedData(value: Partial<SharedAppData> | null | undefined): 
     categories: value?.categories?.length ? value.categories : defaultCategories,
     receipts: Array.isArray(value?.receipts) ? value.receipts : [],
     counter: Number.isFinite(value?.counter) ? Number(value?.counter) : 0,
+    auditLogs: Array.isArray(value?.auditLogs) ? value.auditLogs : [],
   };
 }
 
@@ -366,10 +389,12 @@ function applySharedAppData(
   setCategories: React.Dispatch<React.SetStateAction<Category[]>>,
   setReceipts: React.Dispatch<React.SetStateAction<ReceiptRecord[]>>,
   setCounter: React.Dispatch<React.SetStateAction<number>>,
+  setAuditLogs: React.Dispatch<React.SetStateAction<ReceiptAuditLog[]>>,
 ) {
   setCategories(data.categories);
   setReceipts(data.receipts);
   setCounter(data.counter);
+  setAuditLogs(data.auditLogs);
 }
 
 function normalizeStaffUser(user: StaffUser | null) {
@@ -384,6 +409,36 @@ function normalizeStaffUser(user: StaffUser | null) {
   };
 }
 
+function createAuditLog(
+  receipt: ReceiptRecord,
+  action: AuditAction,
+  changedBy: StaffUser,
+  beforeData?: ReceiptRecord | null,
+  afterData?: ReceiptRecord | null,
+  note?: string,
+): ReceiptAuditLog {
+  return {
+    id: uid(),
+    receiptId: receipt.id,
+    receiptNumber: receipt.receiptNumber,
+    action,
+    changedBy,
+    changedAt: new Date().toISOString(),
+    beforeData,
+    afterData,
+    note,
+  };
+}
+
+function fallbackStaffUser(): StaffUser {
+  const { password: _password, ...staff } = USERS[0];
+  return staff;
+}
+
+function isVoidedReceipt(receipt: ReceiptRecord) {
+  return receipt.recordStatus === "voided";
+}
+
 function App() {
   const [user, setUser] = React.useState<StaffUser | null>(() =>
     normalizeStaffUser(readStorage<StaffUser | null>(STORAGE_KEYS.user, null)),
@@ -392,6 +447,7 @@ function App() {
   const [categories, setCategories] = React.useState<Category[]>(() => getLocalAppData().categories);
   const [receipts, setReceipts] = React.useState<ReceiptRecord[]>(() => getLocalAppData().receipts);
   const [counter, setCounter] = React.useState(() => getLocalAppData().counter);
+  const [auditLogs, setAuditLogs] = React.useState<ReceiptAuditLog[]>(() => getLocalAppData().auditLogs);
   const [isDataReady, setIsDataReady] = React.useState(!USE_SHARED_STORAGE);
   const [syncStatus, setSyncStatus] = React.useState(
     USE_SHARED_STORAGE ? "Connecting shared data..." : "Local demo data",
@@ -400,8 +456,8 @@ function App() {
   const lastSavedSharedState = React.useRef("");
 
   React.useEffect(() => {
-    writeLocalAppData({ categories, receipts, counter });
-  }, [categories, receipts, counter]);
+    writeLocalAppData({ categories, receipts, counter, auditLogs });
+  }, [categories, receipts, counter, auditLogs]);
 
   React.useEffect(() => {
     if (user) writeStorage(STORAGE_KEYS.user, user);
@@ -415,7 +471,7 @@ function App() {
       try {
         const remoteData = await loadSharedAppData();
         if (!isActive) return;
-        applySharedAppData(remoteData, setCategories, setReceipts, setCounter);
+        applySharedAppData(remoteData, setCategories, setReceipts, setCounter, setAuditLogs);
         lastSavedSharedState.current = JSON.stringify(remoteData);
         setSyncStatus("Shared data connected");
       } catch (error) {
@@ -433,7 +489,7 @@ function App() {
 
   React.useEffect(() => {
     if (!USE_SHARED_STORAGE || !isDataReady) return;
-    const data = { categories, receipts, counter };
+    const data = { categories, receipts, counter, auditLogs };
     const serialized = JSON.stringify(data);
     if (serialized === lastSavedSharedState.current) return;
 
@@ -448,7 +504,7 @@ function App() {
     }, 500);
 
     return () => window.clearTimeout(timer);
-  }, [categories, receipts, counter, isDataReady]);
+  }, [categories, receipts, counter, auditLogs, isDataReady]);
 
   React.useEffect(() => {
     if (!USE_SHARED_STORAGE || !isDataReady) return;
@@ -497,7 +553,7 @@ function App() {
         const serialized = JSON.stringify(remoteData);
         if (serialized === lastSavedSharedState.current) return;
         lastSavedSharedState.current = serialized;
-        applySharedAppData(remoteData, setCategories, setReceipts, setCounter);
+        applySharedAppData(remoteData, setCategories, setReceipts, setCounter, setAuditLogs);
         setSyncStatus("Realtime updated");
       } catch (error) {
         setSyncStatus(syncErrorMessage("Realtime message", error));
@@ -532,7 +588,7 @@ function App() {
         const serialized = JSON.stringify(remoteData);
         if (serialized === lastSavedSharedState.current) return;
         lastSavedSharedState.current = serialized;
-        applySharedAppData(remoteData, setCategories, setReceipts, setCounter);
+        applySharedAppData(remoteData, setCategories, setReceipts, setCounter, setAuditLogs);
         setSyncStatus("Backup refresh updated");
       } catch (error) {
         setSyncStatus(syncErrorMessage("Backup refresh", error));
@@ -560,18 +616,31 @@ function App() {
   function saveReceipt(receipt: ReceiptRecord) {
     const isNewReceipt = !receipts.some((item) => item.id === receipt.id);
     if (isNewReceipt) setCounter((value) => value + 1);
+    const savedReceipt = { ...receipt, recordStatus: receipt.recordStatus || "active" };
     setReceipts((current) => {
       const exists = current.some((item) => item.id === receipt.id);
       return exists
-        ? current.map((item) => (item.id === receipt.id ? receipt : item))
-        : [receipt, ...current];
+        ? current.map((item) => (item.id === receipt.id ? savedReceipt : item))
+        : [savedReceipt, ...current];
     });
+    if (isNewReceipt) {
+      setAuditLogs((current) => [
+        createAuditLog(savedReceipt, "created", user || fallbackStaffUser(), null, savedReceipt, "Receipt created"),
+        ...current,
+      ]);
+    }
     setSelectedReceiptId(receipt.id);
     setPage("detail");
   }
 
-  function updateReceipt(receipt: ReceiptRecord) {
-    setReceipts((current) => current.map((item) => (item.id === receipt.id ? receipt : item)));
+  function updateReceipt(receipt: ReceiptRecord, action: AuditAction = "updated", note = "Receipt updated") {
+    const previous = receipts.find((item) => item.id === receipt.id) || null;
+    const nextReceipt = { ...receipt, recordStatus: receipt.recordStatus || "active" };
+    setReceipts((current) => current.map((item) => (item.id === receipt.id ? nextReceipt : item)));
+    setAuditLogs((current) => [
+      createAuditLog(nextReceipt, action, user || fallbackStaffUser(), previous, nextReceipt, note),
+      ...current,
+    ]);
   }
 
   if (!user) return <LoginPage onLogin={login} />;
@@ -640,7 +709,12 @@ function App() {
           <CategoryPage categories={categories} setCategories={setCategories} />
         )}
         {page === "detail" && selectedReceipt && (
-          <ReceiptDetailPage receipt={selectedReceipt} updateReceipt={updateReceipt} />
+          <ReceiptDetailPage
+            receipt={selectedReceipt}
+            updateReceipt={updateReceipt}
+            auditLogs={auditLogs.filter((log) => log.receiptId === selectedReceipt.id)}
+            user={user}
+          />
         )}
       </main>
     </div>
@@ -778,10 +852,11 @@ function Dashboard({
   openReceipt: (id: string) => void;
 }) {
   const [period, setPeriod] = React.useState<"daily" | "weekly" | "monthly">("daily");
-  const currentPeriodReceipts = filterReceiptsForCurrentPeriod(receipts, period);
+  const activeReceipts = receipts.filter((receipt) => !isVoidedReceipt(receipt));
+  const currentPeriodReceipts = filterReceiptsForCurrentPeriod(activeReceipts, period);
   const sent = currentPeriodReceipts.filter((receipt) => receipt.sentStatus === "sent").length;
   const total = currentPeriodReceipts.reduce((sum, receipt) => sum + receipt.total, 0);
-  const groupedReceipts = groupReceiptsByPeriod(receipts, period);
+  const groupedReceipts = groupReceiptsByPeriod(activeReceipts, period);
   const statPrefix = period === "daily" ? "Today" : period === "weekly" ? "This week" : "This month";
 
   return (
@@ -1301,6 +1376,7 @@ const ReceiptPreview = React.forwardRef<HTMLDivElement, { receipt: ReceiptRecord
         <span>Receipt No: {receipt.receiptNumber}</span>
         <span>Date: {formatReceiptDateTime(receipt.date, receipt.createdAt)}</span>
       </div>
+      {isVoidedReceipt(receipt) && <div className="receipt-voided-banner">VOIDED RECEIPT</div>}
       <div className="receipt-student">
         <div>
           <small>Student</small>
@@ -1535,7 +1611,7 @@ function ReceiptListPage({
 }: {
   receipts: ReceiptRecord[];
   openReceipt: (id: string) => void;
-  updateReceipt: (receipt: ReceiptRecord) => void;
+  updateReceipt: (receipt: ReceiptRecord, action?: AuditAction, note?: string) => void;
 }) {
   const [query, setQuery] = React.useState("");
   const [grade, setGrade] = React.useState("");
@@ -1661,6 +1737,7 @@ function VerifyReceiptPage({
               <VerifyField label="Total" value={money.format(receipt.total)} />
               <VerifyField label="Created By" value={receipt.createdBy.name} />
               <VerifyField label="Sent Status" value={receipt.sentStatus} />
+              <VerifyField label="Record Status" value={isVoidedReceipt(receipt) ? "voided" : "active"} />
               <VerifyField label="Created At" value={formatDateTime(receipt.createdAt)} />
             </div>
             <table className="receipt-table verify-items">
@@ -1702,6 +1779,46 @@ function VerifyField({ label, value }: { label: string; value: string }) {
   );
 }
 
+function formatAuditAction(action: AuditAction) {
+  const labels: Record<AuditAction, string> = {
+    created: "Created",
+    updated: "Updated",
+    marked_sent: "Marked Sent",
+    image_generated: "Image Generated",
+    voided: "Voided",
+  };
+  return labels[action];
+}
+
+function ActivityLog({ logs }: { logs: ReceiptAuditLog[] }) {
+  const sortedLogs = [...logs].sort(
+    (left, right) => new Date(right.changedAt).getTime() - new Date(left.changedAt).getTime(),
+  );
+
+  return (
+    <div className="activity-log">
+      <h3>Activity Log</h3>
+      {sortedLogs.length ? (
+        <div className="activity-list">
+          {sortedLogs.map((log) => (
+            <div className="activity-item" key={log.id}>
+              <div>
+                <strong>{formatAuditAction(log.action)}</strong>
+                <span>{log.note || "No note"}</span>
+              </div>
+              <small>
+                {log.changedBy.name} · {formatDateTime(log.changedAt)}
+              </small>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="muted-text">No activity recorded yet.</p>
+      )}
+    </div>
+  );
+}
+
 function formatDateTime(value: string) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "-";
@@ -1720,7 +1837,7 @@ function ReceiptTable({
 }: {
   receipts: ReceiptRecord[];
   openReceipt: (id: string) => void;
-  updateReceipt?: (receipt: ReceiptRecord) => void;
+  updateReceipt?: (receipt: ReceiptRecord, action?: AuditAction, note?: string) => void;
   showActions?: boolean;
   tableClassName?: string;
 }) {
@@ -1753,8 +1870,16 @@ function ReceiptTable({
               <td>{receipt.className}</td>
               <td>{money.format(receipt.total)}</td>
               <td>
-                <span className={receipt.sentStatus === "sent" ? "status sent" : "status"}>
-                  {receipt.sentStatus}
+                <span
+                  className={
+                    isVoidedReceipt(receipt)
+                      ? "status voided"
+                      : receipt.sentStatus === "sent"
+                        ? "status sent"
+                        : "status"
+                  }
+                >
+                  {isVoidedReceipt(receipt) ? "voided" : receipt.sentStatus}
                 </span>
               </td>
               <td>
@@ -1766,12 +1891,17 @@ function ReceiptTable({
                     <button
                       className="icon-button"
                       title="Mark as sent"
+                      disabled={isVoidedReceipt(receipt)}
                       onClick={() =>
-                        updateReceipt({
-                          ...receipt,
-                          sentStatus: "sent",
-                          sentDate: new Date().toISOString(),
-                        })
+                        updateReceipt(
+                          {
+                            ...receipt,
+                            sentStatus: "sent",
+                            sentDate: new Date().toISOString(),
+                          },
+                          "marked_sent",
+                          "Marked as sent from receipt list",
+                        )
                       }
                     >
                       <Send size={17} />
@@ -1790,15 +1920,20 @@ function ReceiptTable({
 function ReceiptDetailPage({
   receipt,
   updateReceipt,
+  auditLogs,
+  user,
 }: {
   receipt: ReceiptRecord;
-  updateReceipt: (receipt: ReceiptRecord) => void;
+  updateReceipt: (receipt: ReceiptRecord, action?: AuditAction, note?: string) => void;
+  auditLogs: ReceiptAuditLog[];
+  user: StaffUser;
 }) {
   const previewRef = React.useRef<HTMLDivElement>(null);
   const [phone, setPhone] = React.useState(receipt.parentPhone || "");
   const [method, setMethod] = React.useState<"WhatsApp" | "SMS" | "manual">(receipt.sendMethod);
   const [imageStatus, setImageStatus] = React.useState("");
   const [isPrinting, setIsPrinting] = React.useState(false);
+  const isVoided = isVoidedReceipt(receipt);
   const receiptStageStyle: React.CSSProperties = isPrinting
     ? {
         width: "100%",
@@ -1858,7 +1993,7 @@ function ReceiptDetailPage({
   async function generateImage() {
     if (!previewRef.current) return;
     const imageUrl = await downloadReceiptImage(previewRef.current, receiptImageFileName(receipt));
-    updateReceipt({ ...receipt, imageUrl });
+    updateReceipt({ ...receipt, imageUrl }, "image_generated", "Receipt image generated");
     setImageStatus("Receipt image downloaded.");
   }
 
@@ -1867,7 +2002,7 @@ function ReceiptDetailPage({
     setImageStatus("Preparing receipt image...");
     try {
       const { blob, imageUrl } = await createReceiptImage(previewRef.current);
-      updateReceipt({ ...receipt, imageUrl });
+      updateReceipt({ ...receipt, imageUrl }, "image_generated", "Receipt image copied");
       if (!navigator.clipboard || typeof ClipboardItem === "undefined") {
         downloadImageUrl(imageUrl, receiptImageFileName(receipt));
         setImageStatus("Image copy is not supported here. The receipt image was downloaded instead.");
@@ -1885,7 +2020,7 @@ function ReceiptDetailPage({
     setImageStatus("Preparing receipt image...");
     try {
       const { blob, imageUrl } = await createReceiptImage(previewRef.current);
-      updateReceipt({ ...receipt, imageUrl });
+      updateReceipt({ ...receipt, imageUrl }, "image_generated", "Receipt image prepared for sharing");
       const file = new File([blob], `${receiptImageFileName(receipt)}.png`, { type: "image/png" });
       const shareData = {
         title: receipt.receiptNumber,
@@ -1918,7 +2053,25 @@ function ReceiptDetailPage({
       sendMethod,
       sentStatus: "sent",
       sentDate: new Date().toISOString(),
-    });
+    }, "marked_sent", `Marked as sent by ${sendMethod}`);
+  }
+
+  function voidReceipt() {
+    if (isVoidedReceipt(receipt)) return;
+    const reason = window.prompt("Void reason");
+    if (!reason?.trim()) return;
+    updateReceipt(
+      {
+        ...receipt,
+        recordStatus: "voided",
+        voidReason: reason.trim(),
+        voidedAt: new Date().toISOString(),
+        voidedBy: user,
+      },
+      "voided",
+      `Voided: ${reason.trim()}`,
+    );
+    setImageStatus("Receipt was voided. It remains in the record with activity history.");
   }
 
   function openWhatsApp() {
@@ -1940,7 +2093,7 @@ function ReceiptDetailPage({
       <div className="page-header">
         <div>
           <h2>Receipt Detail</h2>
-          <p>{receipt.receiptNumber}</p>
+          <p>{receipt.receiptNumber}{isVoided ? " · Voided" : ""}</p>
         </div>
         <div className="action-row">
           <button className="secondary-button" onClick={generateImage}>
@@ -1948,6 +2101,9 @@ function ReceiptDetailPage({
           </button>
           <button className="secondary-button" onClick={printReceipt}>
             <Printer size={18} /> Print
+          </button>
+          <button className="secondary-button danger" onClick={voidReceipt} disabled={isVoided}>
+            <Trash2 size={18} /> Void Receipt
           </button>
         </div>
       </div>
@@ -1977,14 +2133,19 @@ function ReceiptDetailPage({
               Sent status
               <select
                 value={receipt.sentStatus}
+                disabled={isVoided}
                 onChange={(event) =>
-                  updateReceipt({
-                    ...receipt,
-                    parentPhone: phone,
-                    sendMethod: method,
-                    sentStatus: event.target.value as "not sent" | "sent",
-                    sentDate: event.target.value === "sent" ? new Date().toISOString() : undefined,
-                  })
+                  updateReceipt(
+                    {
+                      ...receipt,
+                      parentPhone: phone,
+                      sendMethod: method,
+                      sentStatus: event.target.value as "not sent" | "sent",
+                      sentDate: event.target.value === "sent" ? new Date().toISOString() : undefined,
+                    },
+                    event.target.value === "sent" ? "marked_sent" : "updated",
+                    `Sent status changed to ${event.target.value}`,
+                  )
                 }
               >
                 <option>not sent</option>
@@ -1993,16 +2154,16 @@ function ReceiptDetailPage({
             </label>
           </div>
           <div className="send-actions" style={sendActionsStyle}>
-            <button className="secondary-button" style={sendButtonStyle} onClick={copyImage}>
+            <button className="secondary-button" style={sendButtonStyle} onClick={copyImage} disabled={isVoided}>
               <Copy size={18} /> Copy Image
             </button>
-            <button className="secondary-button" style={sendButtonStyle} onClick={shareImage}>
+            <button className="secondary-button" style={sendButtonStyle} onClick={shareImage} disabled={isVoided}>
               <Share2 size={18} /> Share Image
             </button>
             <button
               className={whatsappPhone ? "primary-button link-button" : "primary-button link-button disabled"}
               style={sendButtonStyle}
-              disabled={!whatsappPhone}
+              disabled={!whatsappPhone || isVoided}
               onClick={openWhatsApp}
             >
               <Send size={18} /> Open WhatsApp
@@ -2010,6 +2171,7 @@ function ReceiptDetailPage({
             <button
               className="secondary-button"
               style={sendButtonStyle}
+              disabled={isVoided}
               onClick={() => markReceiptSent()}
             >
               <Save size={18} /> Mark as Sent
@@ -2021,6 +2183,15 @@ function ReceiptDetailPage({
               Download last generated image
             </a>
           )}
+          {isVoided && (
+            <div className="void-panel">
+              <strong>Voided Receipt</strong>
+              <span>Reason: {receipt.voidReason || "-"}</span>
+              <span>Voided by: {receipt.voidedBy?.name || "-"}</span>
+              <span>Voided at: {receipt.voidedAt ? formatDateTime(receipt.voidedAt) : "-"}</span>
+            </div>
+          )}
+          <ActivityLog logs={auditLogs} />
         </section>
       </div>
     </section>

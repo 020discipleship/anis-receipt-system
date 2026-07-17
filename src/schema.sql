@@ -39,6 +39,10 @@ create table public.receipts (
   sent_method text not null default 'manual' check (sent_method in ('WhatsApp', 'SMS', 'manual')),
   sent_date timestamptz,
   receipt_image_url text,
+  record_status text not null default 'active' check (record_status in ('active', 'voided')),
+  void_reason text,
+  voided_by uuid references public.staff_profiles(id),
+  voided_at timestamptz,
   created_by uuid not null references public.staff_profiles(id),
   created_at timestamptz not null default now()
 );
@@ -53,6 +57,18 @@ create table public.receipt_items (
   amount numeric(12, 2) not null default 0,
   item_note text,
   created_at timestamptz not null default now()
+);
+
+create table public.receipt_audit_logs (
+  id uuid primary key default gen_random_uuid(),
+  receipt_id uuid references public.receipts(id) on delete set null,
+  receipt_number text not null,
+  action text not null check (action in ('created', 'updated', 'marked_sent', 'image_generated', 'voided')),
+  changed_by uuid references public.staff_profiles(id),
+  changed_at timestamptz not null default now(),
+  before_data jsonb,
+  after_data jsonb,
+  note text
 );
 
 -- Simple shared-state table used by the deployed demo app for team testing.
@@ -82,6 +98,7 @@ alter table public.payment_categories enable row level security;
 alter table public.payment_sub_items enable row level security;
 alter table public.receipts enable row level security;
 alter table public.receipt_items enable row level security;
+alter table public.receipt_audit_logs enable row level security;
 alter table public.shared_app_state enable row level security;
 
 create policy "logged in staff can read profiles"
@@ -111,6 +128,16 @@ create policy "logged in staff can manage receipt items"
   on public.receipt_items for all
   to authenticated
   using (true)
+  with check (true);
+
+create policy "logged in staff can read receipt audit logs"
+  on public.receipt_audit_logs for select
+  to authenticated
+  using (true);
+
+create policy "logged in staff can create receipt audit logs"
+  on public.receipt_audit_logs for insert
+  to authenticated
   with check (true);
 
 -- Demo sharing policies for the deployed test app.
