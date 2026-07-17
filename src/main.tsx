@@ -99,7 +99,7 @@ type SharedAppData = {
   auditLogs: ReceiptAuditLog[];
 };
 
-type Page = "dashboard" | "create" | "receipts" | "verify" | "categories" | "detail" | "voided";
+type Page = "dashboard" | "create" | "receipts" | "verify" | "categories" | "detail";
 
 const USERS: Array<StaffUser & { password: string }> = [
   {
@@ -716,37 +716,12 @@ function App() {
               updateReceipt={updateReceipt}
               auditLogs={auditLogs.filter((log) => log.receiptId === selectedReceipt.id)}
               user={user}
-              onVoided={(id) => {
-                setSelectedReceiptId(id);
-                setPage("voided");
-              }}
             />
           ) : (
             <section className="page">
               <section className="panel empty-state">
                 <h2>Receipt not found</h2>
                 <p>The selected receipt could not be loaded. Please open it again from the receipt list.</p>
-                <button className="primary-button" onClick={() => setPage("receipts")}>
-                  <Receipt size={18} /> Go to Receipt List
-                </button>
-              </section>
-            </section>
-          )
-        )}
-        {page === "voided" && (
-          selectedReceipt ? (
-            <VoidedReceiptPage
-              receipt={selectedReceipt}
-              auditLogs={auditLogs.filter((log) => log.receiptId === selectedReceipt.id)}
-              viewReceipt={() => setPage("detail")}
-              goToList={() => setPage("receipts")}
-              goToDashboard={() => setPage("dashboard")}
-            />
-          ) : (
-            <section className="page">
-              <section className="panel empty-state">
-                <h2>Voided receipt saved</h2>
-                <p>The receipt record was updated. Please open it again from the receipt list.</p>
                 <button className="primary-button" onClick={() => setPage("receipts")}>
                   <Receipt size={18} /> Go to Receipt List
                 </button>
@@ -1966,71 +1941,16 @@ function ReceiptTable({
   );
 }
 
-function VoidedReceiptPage({
-  receipt,
-  auditLogs,
-  viewReceipt,
-  goToList,
-  goToDashboard,
-}: {
-  receipt: ReceiptRecord;
-  auditLogs: ReceiptAuditLog[];
-  viewReceipt: () => void;
-  goToList: () => void;
-  goToDashboard: () => void;
-}) {
-  return (
-    <section className="page">
-      <section className="panel voided-complete">
-        <div className="voided-complete-icon">
-          <Trash2 size={26} />
-        </div>
-        <div>
-          <h2>Receipt Voided</h2>
-          <p>{receipt.receiptNumber} remains saved with its void reason and activity history.</p>
-        </div>
-        <div className="voided-summary">
-          <VerifyField label="Receipt No" value={receipt.receiptNumber} />
-          <VerifyField label="Student" value={receipt.studentName || "-"} />
-          <VerifyField label="Total" value={money.format(receipt.total)} />
-          <VerifyField label="Voided At" value={receipt.voidedAt ? formatDateTime(receipt.voidedAt) : "-"} />
-        </div>
-        <div className="void-panel">
-          <strong>Void reason</strong>
-          <span>{receipt.voidReason || "-"}</span>
-          <span>Voided by: {receipt.voidedBy?.name || "-"}</span>
-        </div>
-        <div className="action-row">
-          <button className="primary-button" onClick={viewReceipt}>
-            <Eye size={18} /> View Voided Receipt
-          </button>
-          <button className="secondary-button" onClick={goToList}>
-            <Receipt size={18} /> Receipt List
-          </button>
-          <button className="secondary-button" onClick={goToDashboard}>
-            <LayoutDashboard size={18} /> Dashboard
-          </button>
-        </div>
-      </section>
-      <section className="panel">
-        <ActivityLog logs={auditLogs} />
-      </section>
-    </section>
-  );
-}
-
 function ReceiptDetailPage({
   receipt,
   updateReceipt,
   auditLogs,
   user,
-  onVoided,
 }: {
   receipt: ReceiptRecord;
   updateReceipt: (receipt: ReceiptRecord, action?: AuditAction, note?: string) => void;
   auditLogs: ReceiptAuditLog[];
   user: StaffUser;
-  onVoided: (id: string) => void;
 }) {
   const previewRef = React.useRef<HTMLDivElement>(null);
   const [phone, setPhone] = React.useState(receipt.parentPhone || "");
@@ -2183,8 +2103,8 @@ function ReceiptDetailPage({
     );
     setIsVoidConfirmOpen(false);
     setVoidReason("");
-    onVoided(receipt.id);
     setImageStatus("Receipt was voided. It remains in the record with activity history.");
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   function openWhatsApp() {

@@ -1031,37 +1031,6 @@ textarea {
   resize: vertical;
 }
 
-.voided-complete {
-  display: grid;
-  gap: 16px;
-}
-
-.voided-complete h2 {
-  margin: 0;
-  color: var(--anis-red);
-}
-
-.voided-complete p {
-  margin: 5px 0 0;
-  color: var(--muted);
-}
-
-.voided-complete-icon {
-  width: 54px;
-  height: 54px;
-  display: grid;
-  place-items: center;
-  border-radius: 999px;
-  background: #fff4f4;
-  color: var(--anis-red);
-}
-
-.voided-summary {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 10px;
-}
-
 .void-panel {
   display: grid;
   gap: 4px;
