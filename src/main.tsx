@@ -157,7 +157,14 @@ const STORAGE_KEYS = {
 };
 
 const SHARED_STATE_ID = "default";
-const SUPABASE_URL = (import.meta.env.VITE_SUPABASE_URL || "").replace(/\/$/, "");
+function normalizeSupabaseUrl(value: string) {
+  return value
+    .trim()
+    .replace(/\/+$/, "")
+    .replace(/\/(rest|auth|storage|realtime)\/v1$/, "");
+}
+
+const SUPABASE_URL = normalizeSupabaseUrl(import.meta.env.VITE_SUPABASE_URL || "");
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || "";
 const USE_SHARED_STORAGE = Boolean(SUPABASE_URL && SUPABASE_ANON_KEY);
 
