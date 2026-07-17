@@ -1367,7 +1367,7 @@ const ReceiptPreview = React.forwardRef<HTMLDivElement, { receipt: ReceiptRecord
     <div className="receipt-paper" ref={ref}>
       <div className="receipt-top">
         <img className="receipt-logo" src="/anis-logo.png" alt="ANIS logo" />
-        <div>
+        <div className="receipt-brand">
           <img
             className="receipt-wordmark"
             src="/anis-text-oneline.png"
