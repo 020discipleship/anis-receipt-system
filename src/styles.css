@@ -658,6 +658,31 @@ textarea {
   box-shadow: 0 16px 34px rgba(33, 28, 36, 0.12);
   box-sizing: border-box;
   overflow-wrap: anywhere;
+  position: relative;
+  overflow: hidden;
+}
+
+.receipt-paper::before {
+  content: "ALL NATIONS INTERNATIONAL SCHOOL";
+  position: absolute;
+  left: 50%;
+  top: 53%;
+  z-index: 0;
+  width: 620px;
+  color: var(--anis-purple);
+  font-size: 34px;
+  font-weight: 900;
+  line-height: 1.1;
+  opacity: 0.055;
+  pointer-events: none;
+  text-align: center;
+  transform: translate(-50%, -50%) rotate(-28deg);
+  white-space: nowrap;
+}
+
+.receipt-paper > * {
+  position: relative;
+  z-index: 1;
 }
 
 .receipt-top,
