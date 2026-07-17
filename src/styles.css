@@ -666,13 +666,13 @@ textarea {
   content: "ALL NATIONS INTERNATIONAL SCHOOL\A ALL NATIONS INTERNATIONAL SCHOOL\A ALL NATIONS INTERNATIONAL SCHOOL\A ALL NATIONS INTERNATIONAL SCHOOL";
   position: absolute;
   left: 50%;
-  top: 53%;
+  top: 50%;
   z-index: 0;
-  width: 620px;
+  width: 760px;
   color: var(--anis-purple);
-  font-size: 28px;
+  font-size: 25px;
   font-weight: 900;
-  line-height: 1.65;
+  line-height: 4.75;
   opacity: 0.045;
   pointer-events: none;
   text-align: center;
