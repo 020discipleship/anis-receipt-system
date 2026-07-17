@@ -1365,6 +1365,11 @@ function formatReceiptDateTime(dateValue: string, issuedAt: string) {
 const ReceiptPreview = React.forwardRef<HTMLDivElement, { receipt: ReceiptRecord }>(
   ({ receipt }, ref) => (
     <div className="receipt-paper" ref={ref}>
+      <div className="receipt-watermark" aria-hidden="true">
+        {Array.from({ length: 4 }).map((_, index) => (
+          <span key={index}>All Nations International School</span>
+        ))}
+      </div>
       <div className="receipt-top">
         <img className="receipt-logo" src="/anis-logo.png" alt="ANIS logo" />
         <div className="receipt-brand">

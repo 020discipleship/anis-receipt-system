@@ -662,25 +662,32 @@ textarea {
   overflow: hidden;
 }
 
-.receipt-paper::before {
-  content: "ALL NATIONS INTERNATIONAL SCHOOL\A ALL NATIONS INTERNATIONAL SCHOOL\A ALL NATIONS INTERNATIONAL SCHOOL\A ALL NATIONS INTERNATIONAL SCHOOL";
+.receipt-watermark {
   position: absolute;
-  left: 50%;
-  top: 50%;
   z-index: 0;
-  width: 760px;
-  color: var(--anis-purple);
-  font-size: 25px;
-  font-weight: 900;
-  line-height: 4.75;
-  opacity: 0.045;
+  inset: 0;
+  display: grid;
+  grid-template-rows: repeat(4, 1fr);
+  align-items: center;
   pointer-events: none;
-  text-align: center;
-  transform: translate(-50%, -50%) rotate(-28deg);
-  white-space: pre;
+  overflow: hidden;
+  padding: 18px 0;
 }
 
-.receipt-paper > * {
+.receipt-watermark span {
+  display: block;
+  width: 100%;
+  color: var(--anis-purple);
+  font-size: 20px;
+  font-weight: 900;
+  opacity: 0.05;
+  text-align: center;
+  white-space: nowrap;
+  transform: rotate(-28deg);
+  transform-origin: center;
+}
+
+.receipt-paper > :not(.receipt-watermark) {
   position: relative;
   z-index: 1;
 }
