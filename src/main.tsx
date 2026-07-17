@@ -1362,12 +1362,14 @@ function formatReceiptDateTime(dateValue: string, issuedAt: string) {
   return `${dateValue}, ${issuedTime}`;
 }
 
+const receiptWatermarkText = Array.from({ length: 6 }, () => "ALL NATIONS INTERNATIONAL SCHOOL").join(" | ");
+
 const ReceiptPreview = React.forwardRef<HTMLDivElement, { receipt: ReceiptRecord }>(
   ({ receipt }, ref) => (
     <div className="receipt-paper" ref={ref}>
       <div className="receipt-watermark" aria-hidden="true">
         {Array.from({ length: 4 }).map((_, index) => (
-          <span key={index}>All Nations International School</span>
+          <span key={index}>{receiptWatermarkText}</span>
         ))}
       </div>
       <div className="receipt-top">

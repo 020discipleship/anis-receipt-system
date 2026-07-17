@@ -676,12 +676,14 @@ textarea {
 
 .receipt-watermark span {
   display: block;
-  width: 100%;
+  justify-self: start;
+  width: 1120px;
+  margin-left: -360px;
   color: var(--anis-purple);
   font-size: 20px;
   font-weight: 900;
   opacity: 0.05;
-  text-align: center;
+  text-align: left;
   white-space: nowrap;
   transform: rotate(-28deg);
   transform-origin: center;
