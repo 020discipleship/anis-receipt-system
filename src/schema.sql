@@ -64,6 +64,19 @@ create table public.shared_app_state (
   updated_at timestamptz not null default now()
 );
 
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_publication_tables
+    where pubname = 'supabase_realtime'
+      and schemaname = 'public'
+      and tablename = 'shared_app_state'
+  ) then
+    alter publication supabase_realtime add table public.shared_app_state;
+  end if;
+end $$;
+
 alter table public.staff_profiles enable row level security;
 alter table public.payment_categories enable row level security;
 alter table public.payment_sub_items enable row level security;

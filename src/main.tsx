@@ -342,6 +342,17 @@ async function saveSharedAppData(data: SharedAppData) {
   });
 }
 
+function applySharedAppData(
+  data: SharedAppData,
+  setCategories: React.Dispatch<React.SetStateAction<Category[]>>,
+  setReceipts: React.Dispatch<React.SetStateAction<ReceiptRecord[]>>,
+  setCounter: React.Dispatch<React.SetStateAction<number>>,
+) {
+  setCategories(data.categories);
+  setReceipts(data.receipts);
+  setCounter(data.counter);
+}
+
 function normalizeStaffUser(user: StaffUser | null) {
   if (!user) return null;
   const currentUser = USERS.find((staff) => staff.id === user.id || staff.email === user.email);
@@ -385,9 +396,7 @@ function App() {
       try {
         const remoteData = await loadSharedAppData();
         if (!isActive) return;
-        setCategories(remoteData.categories);
-        setReceipts(remoteData.receipts);
-        setCounter(remoteData.counter);
+        applySharedAppData(remoteData, setCategories, setReceipts, setCounter);
         lastSavedSharedState.current = JSON.stringify(remoteData);
         setSyncStatus("Shared data connected");
       } catch {
@@ -425,20 +434,91 @@ function App() {
   React.useEffect(() => {
     if (!USE_SHARED_STORAGE || !isDataReady) return;
 
+    const realtimeUrl = `${SUPABASE_URL.replace(/^http/, "ws")}/realtime/v1/websocket?apikey=${encodeURIComponent(
+      SUPABASE_ANON_KEY,
+    )}&vsn=1.0.0`;
+    const socket = new WebSocket(realtimeUrl);
+    const topic = "realtime:public:shared_app_state";
+    let ref = 1;
+    let isClosed = false;
+
+    const sendMessage = (event: string, topicName: string, payload: Record<string, unknown> = {}) => {
+      if (socket.readyState !== WebSocket.OPEN) return;
+      socket.send(JSON.stringify({ topic: topicName, event, payload, ref: String(ref++) }));
+    };
+
+    socket.addEventListener("open", () => {
+      sendMessage("phx_join", topic, {
+        config: {
+          postgres_changes: [
+            {
+              event: "*",
+              schema: "public",
+              table: "shared_app_state",
+              filter: `id=eq.${SHARED_STATE_ID}`,
+            },
+          ],
+        },
+        access_token: SUPABASE_ANON_KEY,
+      });
+      setSyncStatus("Realtime connecting...");
+    });
+
+    socket.addEventListener("message", (event) => {
+      try {
+        const message = JSON.parse(event.data);
+        if (message.event === "phx_reply" && message.payload?.status === "ok") {
+          setSyncStatus("Realtime connected");
+          return;
+        }
+
+        const state = message.payload?.data?.record?.state;
+        if (!state) return;
+        const remoteData = normalizeSharedData(state);
+        const serialized = JSON.stringify(remoteData);
+        if (serialized === lastSavedSharedState.current) return;
+        lastSavedSharedState.current = serialized;
+        applySharedAppData(remoteData, setCategories, setReceipts, setCounter);
+        setSyncStatus("Realtime updated");
+      } catch {
+        setSyncStatus("Realtime message skipped");
+      }
+    });
+
+    socket.addEventListener("error", () => {
+      if (!isClosed) setSyncStatus("Realtime unavailable. Using backup refresh.");
+    });
+
+    socket.addEventListener("close", () => {
+      if (!isClosed) setSyncStatus("Realtime disconnected. Using backup refresh.");
+    });
+
+    const heartbeat = window.setInterval(() => {
+      sendMessage("heartbeat", "phoenix");
+    }, 25000);
+
+    return () => {
+      isClosed = true;
+      window.clearInterval(heartbeat);
+      socket.close();
+    };
+  }, [isDataReady]);
+
+  React.useEffect(() => {
+    if (!USE_SHARED_STORAGE || !isDataReady) return;
+
     const interval = window.setInterval(async () => {
       try {
         const remoteData = await loadSharedAppData();
         const serialized = JSON.stringify(remoteData);
         if (serialized === lastSavedSharedState.current) return;
         lastSavedSharedState.current = serialized;
-        setCategories(remoteData.categories);
-        setReceipts(remoteData.receipts);
-        setCounter(remoteData.counter);
-        setSyncStatus("Shared data refreshed");
+        applySharedAppData(remoteData, setCategories, setReceipts, setCounter);
+        setSyncStatus("Backup refresh updated");
       } catch {
-        setSyncStatus("Shared refresh failed");
+        setSyncStatus("Backup refresh failed");
       }
-    }, 15000);
+    }, 60000);
 
     return () => window.clearInterval(interval);
   }, [isDataReady]);
