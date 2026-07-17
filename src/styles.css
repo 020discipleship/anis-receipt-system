@@ -702,7 +702,7 @@ textarea {
   height: auto;
   object-fit: contain;
   object-position: left center;
-  transform: translateY(8px);
+  transform: translateY(12px);
 }
 
 .receipt-top p {
