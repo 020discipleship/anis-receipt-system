@@ -1368,7 +1368,11 @@ const ReceiptPreview = React.forwardRef<HTMLDivElement, { receipt: ReceiptRecord
       <div className="receipt-top">
         <img className="receipt-logo" src="/anis-logo.png" alt="ANIS logo" />
         <div>
-          <h2>All Nations International School</h2>
+          <img
+            className="receipt-wordmark"
+            src="/anis-text-oneline.png"
+            alt="All Nations International School"
+          />
           <p>Official Payment Receipt</p>
         </div>
       </div>

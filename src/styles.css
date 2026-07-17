@@ -686,15 +686,17 @@ textarea {
   object-position: center;
 }
 
-.receipt-top h2 {
-  margin: 0;
-  color: var(--anis-purple-dark);
-  font-size: 21px;
-  line-height: 1.15;
+.receipt-wordmark {
+  display: block;
+  width: 292px;
+  max-width: 100%;
+  height: auto;
+  object-fit: contain;
+  object-position: left center;
 }
 
 .receipt-top p {
-  margin: 4px 0 0;
+  margin: 5px 0 0;
   color: var(--anis-red);
   font-weight: 800;
 }
