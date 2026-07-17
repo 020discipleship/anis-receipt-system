@@ -295,7 +295,11 @@ function readStorage<T>(key: string, fallback: T): T {
 }
 
 function writeStorage<T>(key: string, value: T) {
-  localStorage.setItem(key, JSON.stringify(value));
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch (error) {
+    console.warn(`Could not write ${key} to local storage`, error);
+  }
 }
 
 function getLocalAppData(): SharedAppData {
@@ -308,10 +312,15 @@ function getLocalAppData(): SharedAppData {
 }
 
 function writeLocalAppData(data: SharedAppData) {
-  writeStorage(STORAGE_KEYS.categories, data.categories);
-  writeStorage(STORAGE_KEYS.receipts, data.receipts);
-  writeStorage(STORAGE_KEYS.auditLogs, data.auditLogs);
-  localStorage.setItem(STORAGE_KEYS.counter, String(data.counter));
+  const safeData = prepareSharedAppDataForStorage(data);
+  writeStorage(STORAGE_KEYS.categories, safeData.categories);
+  writeStorage(STORAGE_KEYS.receipts, safeData.receipts);
+  writeStorage(STORAGE_KEYS.auditLogs, safeData.auditLogs);
+  try {
+    localStorage.setItem(STORAGE_KEYS.counter, String(safeData.counter));
+  } catch (error) {
+    console.warn("Could not write receipt counter to local storage", error);
+  }
 }
 
 function getNextReceiptNumber(counter: number) {
@@ -321,11 +330,38 @@ function getNextReceiptNumber(counter: number) {
 }
 
 function normalizeSharedData(value: Partial<SharedAppData> | null | undefined): SharedAppData {
-  return {
+  return prepareSharedAppDataForStorage({
     categories: value?.categories?.length ? value.categories : defaultCategories,
     receipts: Array.isArray(value?.receipts) ? value.receipts : [],
     counter: Number.isFinite(value?.counter) ? Number(value?.counter) : 0,
     auditLogs: Array.isArray(value?.auditLogs) ? value.auditLogs : [],
+  });
+}
+
+function isInlineImageUrl(value?: string) {
+  return Boolean(value?.startsWith("data:image/"));
+}
+
+function receiptForStorage(receipt: ReceiptRecord): ReceiptRecord {
+  if (!isInlineImageUrl(receipt.imageUrl)) return receipt;
+  const { imageUrl: _imageUrl, ...safeReceipt } = receipt;
+  return safeReceipt;
+}
+
+function auditLogForStorage(log: ReceiptAuditLog): ReceiptAuditLog {
+  return {
+    ...log,
+    beforeData: log.beforeData ? receiptForStorage(log.beforeData) : log.beforeData,
+    afterData: log.afterData ? receiptForStorage(log.afterData) : log.afterData,
+  };
+}
+
+function prepareSharedAppDataForStorage(data: SharedAppData): SharedAppData {
+  return {
+    categories: data.categories,
+    receipts: data.receipts.map(receiptForStorage),
+    counter: data.counter,
+    auditLogs: data.auditLogs.map(auditLogForStorage),
   };
 }
 
@@ -371,6 +407,7 @@ async function loadSharedAppData() {
 }
 
 async function saveSharedAppData(data: SharedAppData) {
+  const safeData = prepareSharedAppDataForStorage(data);
   await supabaseRequest("shared_app_state?on_conflict=id", {
     method: "POST",
     headers: {
@@ -378,7 +415,7 @@ async function saveSharedAppData(data: SharedAppData) {
     },
     body: JSON.stringify({
       id: SHARED_STATE_ID,
-      state: data,
+      state: safeData,
       updated_at: new Date().toISOString(),
     }),
   });
@@ -424,8 +461,8 @@ function createAuditLog(
     action,
     changedBy,
     changedAt: new Date().toISOString(),
-    beforeData,
-    afterData,
+    beforeData: beforeData ? receiptForStorage(beforeData) : beforeData,
+    afterData: afterData ? receiptForStorage(afterData) : afterData,
     note,
   };
 }
@@ -489,7 +526,7 @@ function App() {
 
   React.useEffect(() => {
     if (!USE_SHARED_STORAGE || !isDataReady) return;
-    const data = { categories, receipts, counter, auditLogs };
+    const data = prepareSharedAppDataForStorage({ categories, receipts, counter, auditLogs });
     const serialized = JSON.stringify(data);
     if (serialized === lastSavedSharedState.current) return;
 
