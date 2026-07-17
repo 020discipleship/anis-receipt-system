@@ -739,10 +739,10 @@ function Sidebar({
   return (
     <aside className="sidebar">
       <div>
-        <div className="sidebar-title">
+        <button className="sidebar-title" type="button" onClick={() => setPage("dashboard")}>
           <img src="/anis-logo.png" alt="ANIS logo" />
           <span>ANIS Receipts</span>
-        </div>
+        </button>
         <nav>
           {links.map((link) => (
             <button
