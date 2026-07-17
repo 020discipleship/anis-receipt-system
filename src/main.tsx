@@ -311,9 +311,21 @@ async function supabaseRequest(path: string, init: RequestInit = {}) {
   });
   if (!response.ok) {
     const message = await response.text();
-    throw new Error(message || `Supabase request failed: ${response.status}`);
+    throw new Error(message || `HTTP ${response.status}`);
   }
   return response;
+}
+
+function syncErrorMessage(label: string, error: unknown) {
+  if (!(error instanceof Error) || !error.message) return `${label} failed`;
+  try {
+    const parsed = JSON.parse(error.message);
+    const detail = parsed.message || parsed.hint || parsed.details || parsed.code;
+    if (detail) return `${label} failed: ${detail}`;
+  } catch {
+    // Keep the plain error below when Supabase does not return JSON.
+  }
+  return `${label} failed: ${error.message.slice(0, 90)}`;
 }
 
 async function loadSharedAppData() {
@@ -399,8 +411,8 @@ function App() {
         applySharedAppData(remoteData, setCategories, setReceipts, setCounter);
         lastSavedSharedState.current = JSON.stringify(remoteData);
         setSyncStatus("Shared data connected");
-      } catch {
-        if (isActive) setSyncStatus("Shared data unavailable. Using this browser only.");
+      } catch (error) {
+        if (isActive) setSyncStatus(syncErrorMessage("Shared data", error));
       } finally {
         if (isActive) setIsDataReady(true);
       }
@@ -423,8 +435,8 @@ function App() {
         await saveSharedAppData(data);
         lastSavedSharedState.current = serialized;
         setSyncStatus("Shared data saved");
-      } catch {
-        setSyncStatus("Shared save failed. Check Supabase settings.");
+      } catch (error) {
+        setSyncStatus(syncErrorMessage("Shared save", error));
       }
     }, 500);
 
@@ -480,8 +492,8 @@ function App() {
         lastSavedSharedState.current = serialized;
         applySharedAppData(remoteData, setCategories, setReceipts, setCounter);
         setSyncStatus("Realtime updated");
-      } catch {
-        setSyncStatus("Realtime message skipped");
+      } catch (error) {
+        setSyncStatus(syncErrorMessage("Realtime message", error));
       }
     });
 
@@ -515,8 +527,8 @@ function App() {
         lastSavedSharedState.current = serialized;
         applySharedAppData(remoteData, setCategories, setReceipts, setCounter);
         setSyncStatus("Backup refresh updated");
-      } catch {
-        setSyncStatus("Backup refresh failed");
+      } catch (error) {
+        setSyncStatus(syncErrorMessage("Backup refresh", error));
       }
     }, 60000);
 
