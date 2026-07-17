@@ -663,21 +663,21 @@ textarea {
 }
 
 .receipt-paper::before {
-  content: "ALL NATIONS INTERNATIONAL SCHOOL";
+  content: "ALL NATIONS INTERNATIONAL SCHOOL\A ALL NATIONS INTERNATIONAL SCHOOL\A ALL NATIONS INTERNATIONAL SCHOOL\A ALL NATIONS INTERNATIONAL SCHOOL";
   position: absolute;
   left: 50%;
   top: 53%;
   z-index: 0;
   width: 620px;
   color: var(--anis-purple);
-  font-size: 34px;
+  font-size: 28px;
   font-weight: 900;
-  line-height: 1.1;
-  opacity: 0.055;
+  line-height: 1.65;
+  opacity: 0.045;
   pointer-events: none;
   text-align: center;
   transform: translate(-50%, -50%) rotate(-28deg);
-  white-space: nowrap;
+  white-space: pre;
 }
 
 .receipt-paper > * {
