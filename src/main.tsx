@@ -636,6 +636,7 @@ function App() {
   function updateReceipt(receipt: ReceiptRecord, action: AuditAction = "updated", note = "Receipt updated") {
     const previous = receipts.find((item) => item.id === receipt.id) || null;
     const nextReceipt = { ...receipt, recordStatus: receipt.recordStatus || "active" };
+    setSelectedReceiptId(receipt.id);
     setReceipts((current) => current.map((item) => (item.id === receipt.id ? nextReceipt : item)));
     setAuditLogs((current) => [
       createAuditLog(nextReceipt, action, user || fallbackStaffUser(), previous, nextReceipt, note),
@@ -661,7 +662,7 @@ function App() {
     );
   }
 
-  const selectedReceipt = receipts.find((receipt) => receipt.id === selectedReceiptId) || receipts[0];
+  const selectedReceipt = selectedReceiptId ? receipts.find((receipt) => receipt.id === selectedReceiptId) : null;
   const nextReceiptNumber = getNextReceiptNumber(counter);
 
   return (
@@ -708,13 +709,25 @@ function App() {
         {page === "categories" && (
           <CategoryPage categories={categories} setCategories={setCategories} />
         )}
-        {page === "detail" && selectedReceipt && (
-          <ReceiptDetailPage
-            receipt={selectedReceipt}
-            updateReceipt={updateReceipt}
-            auditLogs={auditLogs.filter((log) => log.receiptId === selectedReceipt.id)}
-            user={user}
-          />
+        {page === "detail" && (
+          selectedReceipt ? (
+            <ReceiptDetailPage
+              receipt={selectedReceipt}
+              updateReceipt={updateReceipt}
+              auditLogs={auditLogs.filter((log) => log.receiptId === selectedReceipt.id)}
+              user={user}
+            />
+          ) : (
+            <section className="page">
+              <section className="panel empty-state">
+                <h2>Receipt not found</h2>
+                <p>The selected receipt could not be loaded. Please open it again from the receipt list.</p>
+                <button className="primary-button" onClick={() => setPage("receipts")}>
+                  <Receipt size={18} /> Go to Receipt List
+                </button>
+              </section>
+            </section>
+          )
         )}
       </main>
     </div>
@@ -1944,6 +1957,8 @@ function ReceiptDetailPage({
   const [method, setMethod] = React.useState<"WhatsApp" | "SMS" | "manual">(receipt.sendMethod);
   const [imageStatus, setImageStatus] = React.useState("");
   const [isPrinting, setIsPrinting] = React.useState(false);
+  const [isVoidConfirmOpen, setIsVoidConfirmOpen] = React.useState(false);
+  const [voidReason, setVoidReason] = React.useState("");
   const isVoided = isVoidedReceipt(receipt);
   const receiptStageStyle: React.CSSProperties = isPrinting
     ? {
@@ -2067,21 +2082,27 @@ function ReceiptDetailPage({
     }, "marked_sent", `Marked as sent by ${sendMethod}`);
   }
 
-  function voidReceipt() {
+  function confirmVoidReceipt(event?: React.FormEvent<HTMLFormElement>) {
+    event?.preventDefault();
     if (isVoidedReceipt(receipt)) return;
-    const reason = window.prompt("Void reason");
-    if (!reason?.trim()) return;
+    const reason = voidReason.trim();
+    if (!reason) {
+      setImageStatus("Please enter a void reason.");
+      return;
+    }
     updateReceipt(
       {
         ...receipt,
         recordStatus: "voided",
-        voidReason: reason.trim(),
+        voidReason: reason,
         voidedAt: new Date().toISOString(),
         voidedBy: user,
       },
       "voided",
-      `Voided: ${reason.trim()}`,
+      `Voided: ${reason}`,
     );
+    setIsVoidConfirmOpen(false);
+    setVoidReason("");
     setImageStatus("Receipt was voided. It remains in the record with activity history.");
   }
 
@@ -2113,11 +2134,48 @@ function ReceiptDetailPage({
           <button className="secondary-button" onClick={printReceipt}>
             <Printer size={18} /> Print
           </button>
-          <button className="secondary-button danger" onClick={voidReceipt} disabled={isVoided}>
+          <button
+            className="secondary-button danger"
+            onClick={() => setIsVoidConfirmOpen(true)}
+            disabled={isVoided}
+          >
             <Trash2 size={18} /> Void Receipt
           </button>
         </div>
       </div>
+      {isVoidConfirmOpen && (
+        <form className="void-confirm" onSubmit={confirmVoidReceipt}>
+          <div>
+            <h3>Void Receipt</h3>
+            <p>This receipt will remain in the records, and the reason will be saved in the activity log.</p>
+          </div>
+          <label>
+            Void reason
+            <textarea
+              value={voidReason}
+              onChange={(event) => setVoidReason(event.target.value)}
+              placeholder="Enter the reason for voiding this receipt"
+              rows={3}
+              autoFocus
+            />
+          </label>
+          <div className="action-row">
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={() => {
+                setIsVoidConfirmOpen(false);
+                setVoidReason("");
+              }}
+            >
+              Cancel
+            </button>
+            <button type="submit" className="secondary-button danger">
+              <Trash2 size={18} /> Confirm Void
+            </button>
+          </div>
+        </form>
+      )}
       <div className="two-column">
         <div className="preview-column">
           <div className="receipt-stage" style={receiptStageStyle}>
