@@ -1240,9 +1240,16 @@ textarea {
 }
 
 @media print {
+  @page {
+    size: A5 portrait;
+    margin: 8mm;
+  }
+
   html,
   body {
     background: #ffffff !important;
+    width: 148mm;
+    min-height: 210mm;
   }
 
   .sidebar,
@@ -1259,11 +1266,13 @@ textarea {
     background: #ffffff !important;
     padding: 0;
     overflow: visible;
+    width: 100%;
   }
 
   .receipt-stage {
-    width: 100% !important;
+    width: 132mm !important;
     max-width: none !important;
+    margin: 0 auto !important;
     padding: 0 !important;
     border: 0 !important;
     background: transparent !important;
@@ -1272,9 +1281,14 @@ textarea {
 
   .receipt-paper {
     border: 0;
-    width: 100%;
+    width: 132mm;
+    min-height: auto;
+    margin: 0 auto;
+    padding: 7mm;
     box-shadow: none !important;
     background: #ffffff !important;
+    break-inside: avoid;
+    page-break-inside: avoid;
   }
 
   .receipt-student {
