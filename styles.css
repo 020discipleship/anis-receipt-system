@@ -177,8 +177,20 @@ textarea {
   display: flex;
   align-items: center;
   gap: 10px;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
   font-weight: 800;
   margin-bottom: 28px;
+  padding: 0;
+  text-align: left;
+}
+
+.sidebar-title:hover {
+  opacity: 0.9;
 }
 
 .sidebar-title img {
@@ -644,6 +656,33 @@ textarea {
   border: 1px solid var(--line);
   padding: 24px;
   box-shadow: 0 16px 34px rgba(33, 28, 36, 0.12);
+  box-sizing: border-box;
+  overflow-wrap: anywhere;
+  position: relative;
+  overflow: hidden;
+}
+
+.receipt-paper::before {
+  content: "ALL NATIONS INTERNATIONAL SCHOOL";
+  position: absolute;
+  left: 50%;
+  top: 53%;
+  z-index: 0;
+  width: 620px;
+  color: var(--anis-purple);
+  font-size: 34px;
+  font-weight: 900;
+  line-height: 1.1;
+  opacity: 0.055;
+  pointer-events: none;
+  text-align: center;
+  transform: translate(-50%, -50%) rotate(-28deg);
+  white-space: nowrap;
+}
+
+.receipt-paper > * {
+  position: relative;
+  z-index: 1;
 }
 
 .receipt-top,
@@ -674,15 +713,25 @@ textarea {
   object-position: center;
 }
 
-.receipt-top h2 {
-  margin: 0;
-  color: var(--anis-purple-dark);
-  font-size: 21px;
-  line-height: 1.15;
+.receipt-brand {
+  display: grid;
+  align-content: center;
+  min-height: 74px;
+  min-width: 0;
+}
+
+.receipt-wordmark {
+  display: block;
+  width: 292px;
+  max-width: 100%;
+  height: auto;
+  object-fit: contain;
+  object-position: left center;
+  transform: translateY(12px);
 }
 
 .receipt-top p {
-  margin: 4px 0 0;
+  margin: 10px 0 0;
   color: var(--anis-red);
   font-weight: 800;
 }
@@ -700,6 +749,18 @@ textarea {
   background: #f7f3f7;
   border-radius: 7px;
   padding: 11px;
+}
+
+.receipt-voided-banner {
+  margin: 10px 0;
+  padding: 8px 10px;
+  border: 2px solid var(--anis-red);
+  border-radius: 7px;
+  color: var(--anis-red);
+  font-size: 14px;
+  font-weight: 900;
+  letter-spacing: 0;
+  text-align: center;
 }
 
 .receipt-student div,
@@ -724,6 +785,7 @@ textarea {
 
 .receipt-table {
   margin-top: 12px;
+  table-layout: fixed;
 }
 
 .receipt-table th,
@@ -733,6 +795,8 @@ textarea {
   text-align: left;
   border-bottom: 1px solid #eee6ee;
   padding: 8px 8px;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .receipt-table th:last-child,
@@ -745,6 +809,7 @@ textarea {
   flex-direction: column;
   align-items: flex-end;
   gap: 3px;
+  min-width: 0;
 }
 
 .amount-with-note small {
@@ -752,6 +817,10 @@ textarea {
   font-size: 11px;
   font-weight: 600;
   line-height: 1.25;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  white-space: normal;
 }
 
 .receipt-total {
@@ -786,6 +855,9 @@ textarea {
 
 .receipt-note p {
   margin: 0;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 .receipt-stamp {
@@ -901,6 +973,11 @@ textarea {
   background: var(--anis-purple-soft);
 }
 
+.status.voided {
+  color: var(--anis-red);
+  background: #ffe8e8;
+}
+
 .empty-state {
   padding: 22px;
   color: var(--muted);
@@ -919,6 +996,53 @@ textarea {
   color: var(--muted);
   font-size: 13px;
   font-weight: 700;
+}
+
+.void-panel {
+  display: grid;
+  gap: 4px;
+  margin-top: 14px;
+  padding: 12px;
+  border: 1px solid #f1b8b8;
+  border-radius: 7px;
+  background: #fff4f4;
+  color: var(--anis-red);
+  font-size: 13px;
+}
+
+.activity-log {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+
+.activity-log h3 {
+  margin: 0 0 10px;
+}
+
+.activity-list {
+  display: grid;
+  gap: 8px;
+}
+
+.activity-item {
+  display: grid;
+  gap: 4px;
+  padding: 10px;
+  border-radius: 7px;
+  background: #faf7fb;
+}
+
+.activity-item div {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.activity-item span,
+.activity-item small,
+.muted-text {
+  color: var(--muted);
 }
 
 .save-message {
